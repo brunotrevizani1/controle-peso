@@ -1,8 +1,9 @@
-const STORAGE_KEY = "controlePesoApp_v4";
+const STORAGE_KEY = "controlePesoApp_v10";
 
 let state = {
   pesoAtual: 70,
   pesoMeta: 80,
+  mobileSection: "home",
   treinos: [
     {
       id: 1,
@@ -53,6 +54,7 @@ function carregarStorage() {
     state = {
       ...state,
       ...dados,
+      mobileSection: dados.mobileSection || "home",
       treinos: (dados.treinos || []).map(item => ({
         ...item,
         feito: item.feito ?? false
@@ -70,8 +72,12 @@ function formatarKg(valor) {
 }
 
 function atualizarCards() {
-  document.getElementById("pesoAtual").textContent = formatarKg(state.pesoAtual);
-  document.getElementById("pesoMeta").textContent = formatarKg(state.pesoMeta);
+  const pesoAtualEl = document.getElementById("pesoAtual");
+  const pesoMetaEl = document.getElementById("pesoMeta");
+  const faltaEl = document.getElementById("faltamMeta");
+
+  if (pesoAtualEl) pesoAtualEl.textContent = formatarKg(state.pesoAtual);
+  if (pesoMetaEl) pesoMetaEl.textContent = formatarKg(state.pesoMeta);
 
   const falta = state.pesoMeta - state.pesoAtual;
   let texto = "";
@@ -79,12 +85,12 @@ function atualizarCards() {
   if (falta > 0) {
     texto = `Faltam ${formatarKg(falta)}`;
   } else if (falta === 0) {
-    texto = "";
+    texto = "Meta atingida";
   } else {
     texto = `Passou ${formatarKg(Math.abs(falta))}`;
   }
 
-  document.getElementById("faltamMeta").textContent = texto;
+  if (faltaEl) faltaEl.textContent = texto;
 }
 
 function ativarEdicaoPeso(tipo) {
@@ -115,7 +121,6 @@ function salvarPesoInline(tipo) {
   if (tipo === "atual") {
     const texto = document.getElementById("pesoAtual");
     const input = document.getElementById("inputPesoAtualInline");
-
     const valor = parseFloat(String(input.value).replace(",", "."));
 
     if (!isNaN(valor) && valor > 0) {
@@ -131,7 +136,6 @@ function salvarPesoInline(tipo) {
   if (tipo === "meta") {
     const texto = document.getElementById("pesoMeta");
     const input = document.getElementById("inputPesoMetaInline");
-
     const valor = parseFloat(String(input.value).replace(",", "."));
 
     if (!isNaN(valor) && valor > 0) {
@@ -148,6 +152,74 @@ function salvarPesoInline(tipo) {
 function handlePesoKey(event, tipo) {
   if (event.key === "Enter") {
     salvarPesoInline(tipo);
+  }
+}
+
+function abrirSecaoMobile(secao) {
+  state.mobileSection = secao;
+  salvarStorage();
+  aplicarLayoutMobile();
+}
+
+function voltarInicioMobile() {
+  state.mobileSection = "home";
+  salvarStorage();
+  aplicarLayoutMobile();
+}
+
+function aplicarLayoutMobile() {
+  const mobile = window.innerWidth <= 900;
+
+  const topo = document.getElementById("topoPrincipal");
+  const home = document.getElementById("mobileHome");
+  const treino = document.getElementById("painelTreino");
+  const alimentacao = document.getElementById("painelAlimentacao");
+
+  if (!mobile) {
+    if (topo) topo.style.display = "block";
+    if (home) home.style.display = "none";
+    if (treino) treino.style.display = "flex";
+    if (alimentacao) alimentacao.style.display = "flex";
+    return;
+  }
+
+  if (treino) treino.style.display = "none";
+  if (alimentacao) alimentacao.style.display = "none";
+  if (home) home.style.display = "none";
+  if (topo) topo.style.display = "none";
+
+  if (state.mobileSection === "home") {
+    if (topo) topo.style.display = "block";
+    if (home) home.style.display = "block";
+  }
+
+  if (state.mobileSection === "treino") {
+    if (treino) treino.style.display = "flex";
+  }
+
+  if (state.mobileSection === "alimentacao") {
+    if (alimentacao) alimentacao.style.display = "flex";
+  }
+
+  treino.style.display = "none";
+  alimentacao.style.display = "none";
+  treino.classList.remove("mobile-active");
+  alimentacao.classList.remove("mobile-active");
+
+  if (state.mobileSection === "treino") {
+    topo.classList.add("mobile-hidden");
+    home.classList.add("hidden");
+    treino.style.display = "flex";
+    treino.classList.add("mobile-active");
+  } else if (state.mobileSection === "alimentacao") {
+    topo.classList.add("mobile-hidden");
+    home.classList.add("hidden");
+    alimentacao.style.display = "flex";
+    alimentacao.classList.add("mobile-active");
+  } else {
+    topo.classList.remove("mobile-hidden");
+    home.classList.remove("hidden");
+    home.style.display = "block";
   }
 }
 
@@ -173,9 +245,7 @@ function renderTreinos() {
       <td>${item.detalhes}</td>
       <td>
         <div class="status-wrap">
-          <div class="status-bolinha ${item.feito ? "status-ok" : ""}" onclick="toggleStatusTreino(${item.id})">
-            ✓
-          </div>
+          <div class="status-bolinha ${item.feito ? "status-ok" : ""}" onclick="toggleStatusTreino(${item.id})">✓</div>
         </div>
       </td>
       <td>
@@ -212,9 +282,7 @@ function renderAlimentacao() {
       <td>${item.alimentos}</td>
       <td>
         <div class="status-wrap">
-          <div class="status-bolinha ${item.feito ? "status-ok" : ""}" onclick="toggleStatusAlimentacao(${item.id})">
-            ✓
-          </div>
+          <div class="status-bolinha ${item.feito ? "status-ok" : ""}" onclick="toggleStatusAlimentacao(${item.id})">✓</div>
         </div>
       </td>
       <td>
@@ -309,7 +377,6 @@ function salvarItemModal() {
   if (modalTipo === "treino") {
     if (editandoId) {
       const item = state.treinos.find(t => t.id === editandoId);
-
       if (item) {
         item.dia = campo1;
         item.treino = campo2;
@@ -329,7 +396,6 @@ function salvarItemModal() {
   if (modalTipo === "alimentacao") {
     if (editandoId) {
       const item = state.alimentacao.find(a => a.id === editandoId);
-
       if (item) {
         item.refeicao = campo1;
         item.horario = campo2;
@@ -417,7 +483,10 @@ function renderTudo() {
   atualizarCards();
   renderTreinos();
   renderAlimentacao();
+  aplicarLayoutMobile();
 }
+
+window.addEventListener("resize", aplicarLayoutMobile);
 
 carregarStorage();
 renderTudo();
